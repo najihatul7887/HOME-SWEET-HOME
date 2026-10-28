@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>English Year 3 — Module 5: My New House (Stage 2 Furniture Quest)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js r128 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Fredoka', 'Inter', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      overflow: hidden;
+      background-color: #0f172a;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+    /* Touch Joystick Styling */
+    .joystick-base {
+      width: 120px;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 3px solid rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      position: absolute;
+      bottom: 30px;
+      left: 30px;
+      touch-action: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(6px);
+    }
+    .joystick-thumb {
+      width: 50px;
+      height: 50px;
+      background: #f59e0b;
+      border: 2px solid white;
+      border-radius: 50%;
+      position: absolute;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      transition: transform 0.05s ease-out;
+    }
+    @keyframes bounce-slow {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .animate-bounce-slow {
+      animation: bounce-slow 1.8s infinite ease-in-out;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.06); opacity: 1; }
+    }
+    .animate-pulse-glow {
+      animation: pulse-glow 1.4s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="relative w-screen h-screen">
+
+  <!-- 3D Render Canvas -->
+  <div id="canvas-container" class="w-full h-full"></div>
+
+  <!-- HUD Top Header -->
+  <div class="absolute top-3 left-1/2 -translate-x-1/2 z-10 w-[92%] max-w-2xl pointer-events-none">
+    <div class="bg-slate-900/85 backdrop-blur-md border border-slate-700/80 text-white p-3 rounded-2xl shadow-2xl flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl font-bold border border-amber-500/40">
+          🏡
+        </div>
+        <div>
+          <h1 class="text-sm md:text-base font-bold text-amber-400 leading-tight">Year 3 English: My New House</h1>
+          <p class="text-[11px] md:text-xs text-slate-300">Find furniture & solve vocabulary quizzes!</p>
+        </div>
+      </div>
+
+      <!-- Key Inventory Counter -->
+      <div class="flex items-center space-x-2 bg-slate-800/90 px-3 py-1.5 rounded-xl border border-amber-400/40">
+        <span class="text-xl">🔑</span>
+        <div class="text-right">
+          <div class="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Keys Found</div>
+          <div id="key-counter-display" class="text-sm font-black text-amber-400">0 / 3 Keys</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Objective Banner -->
+  <div class="absolute top-20 left-1/2 -translate-x-1/2 z-10 pointer-events-none text-center">
+    <div id="objective-badge" class="bg-amber-500/90 text-slate-950 font-bold px-4 py-1 rounded-full text-xs shadow-md border border-white/40 animate-pulse-glow">
+      🎯 Objective: Explore rooms and inspect furniture to find 3 keys!
+    </div>
+  </div>
+
+  <!-- Top Right Utility Buttons -->
+  <div class="absolute top-3 right-3 z-10 flex space-x-2">
+    <button id="toggle-help-btn" class="bg-slate-800/90 hover:bg-slate-700 text-white p-2.5 rounded-xl border border-slate-600 shadow-md text-xs font-semibold flex items-center space-x-1">
+      <span>❓ Help</span>
+    </button>
+    <button id="reset-pos-btn" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold p-2.5 rounded-xl shadow-md text-xs flex items-center space-x-1 transition active:scale-95">
+      <span>🔄 Reset</span>
+    </button>
+  </div>
+
+  <!-- Controls Helper Drawer -->
+  <div class="absolute top-16 left-4 z-20 hidden sm:block">
+    <div id="controls-panel" class="bg-slate-900/90 backdrop-blur-md border border-slate-700 text-white p-4 rounded-xl shadow-xl max-w-xs text-xs space-y-2">
+      <div class="flex items-center justify-between font-bold text-amber-400 border-b border-slate-700 pb-1">
+        <span>🕹️ Controls Guide</span>
+        <button id="close-controls-btn" class="text-slate-400 hover:text-white pointer-events-auto">✕</button>
+      </div>
+      <p><span class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300 font-mono">W A S D</span> / <span class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300 font-mono">Arrows</span> : Walk</p>
+      <p><span class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300 font-mono">Mouse Drag</span> : Rotate Camera</p>
+      <p><span class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300 font-mono">E</span> / <span class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300 font-mono">Space</span> : Inspect Furniture</p>
+      <p><span class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300 font-mono">Mobile</span> : Touch Joystick & Buttons</p>
+    </div>
+  </div>
+
+  <!-- Floating Proximity Action Prompt -->
+  <div id="interact-prompt" class="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 hidden pointer-events-none transition-all duration-300">
+    <div class="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 px-5 py-2.5 rounded-full font-bold shadow-2xl border-2 border-white text-xs md:text-sm flex items-center space-x-2 animate-bounce-slow">
+      <span class="text-xl" id="prompt-icon">🔍</span>
+      <span id="prompt-text">Press [E] or Tap [INTERACT]</span>
+    </div>
+  </div>
+
+  <!-- Mobile On-Screen Touch Controls -->
+  <div id="touch-controls" class="absolute inset-0 z-10 pointer-events-none sm:hidden">
+    <div id="joystick-base" class="joystick-base pointer-events-auto">
+      <div id="joystick-thumb" class="joystick-thumb"></div>
+    </div>
+    <div id="touch-camera-zone" class="absolute right-0 top-20 bottom-0 w-1/2 pointer-events-auto"></div>
+    <div class="absolute bottom-8 right-8 pointer-events-auto">
+      <button id="mobile-interact-btn" class="w-20 h-20 bg-amber-500 active:bg-amber-600 text-slate-950 font-bold rounded-full shadow-2xl border-4 border-white flex flex-col items-center justify-center space-y-0.5 active:scale-90 transition">
+        <span class="text-2xl">✋</span>
+        <span class="text-[10px] uppercase font-black tracking-wider">Inspect</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Furniture Vocabulary Quiz Modal -->
+  <div id="quiz-modal" class="absolute inset-0 z-40 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-amber-400/80 text-white rounded-3xl max-w-lg w-full p-6 shadow-2xl transform transition-all scale-95">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-4">
+        <div class="flex items-center space-x-3">
+          <div id="quiz-icon-container" class="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-3xl font-bold border border-amber-500/40">
+            🛏️
+          </div>
+          <div>
+            <span id="quiz-room-badge" class="bg-sky-500/20 text-sky-300 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase border border-sky-500/30">Bedroom</span>
+            <h2 id="quiz-furniture-title" class="text-lg font-bold text-amber-400">Interactive Bed</h2>
+          </div>
+        </div>
+        <button id="close-quiz-x-btn" class="text-slate-400 hover:text-white text-xl font-bold">✕</button>
+      </div>
+
+      <!-- Question Content -->
+      <div class="space-y-4">
+        <div class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700 space-y-2">
+          <p id="quiz-question-text" class="text-sm font-semibold text-slate-200">
+            Where do you sleep in the bedroom? Identify this furniture piece:
+          </p>
+          <div class="text-center py-2 bg-slate-900/60 rounded-xl border border-slate-700">
+            <span id="quiz-sentence-text" class="text-base font-bold text-amber-300 italic">"It is a ______."</span>
+          </div>
+        </div>
+
+        <!-- MCQ Options Grid -->
+        <div id="quiz-options-container" class="grid grid-cols-2 gap-3">
+          <!-- Dynamic Buttons Injected Here -->
+        </div>
+
+        <!-- Feedback Alert Box -->
+        <div id="quiz-feedback-box" class="hidden p-3 rounded-xl text-xs font-semibold text-center border"></div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="mt-6 flex justify-end">
+        <button id="close-quiz-btn" class="w-full sm:w-auto px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl text-xs transition">
+          Close & Explore
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Locked Door Alert Modal -->
+  <div id="door-modal" class="absolute inset-0 z-40 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-amber-500 text-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4">
+      <div class="w-16 h-16 bg-amber-500/20 border-2 border-amber-400 rounded-full flex items-center justify-center text-4xl mx-auto text-amber-400">
+        🔒
+      </div>
+      <h2 class="text-xl font-bold text-amber-400">Main Exit Door is Locked!</h2>
+      <p class="text-xs text-slate-300 leading-relaxed">
+        You need <strong class="text-amber-300">3 Keys</strong> to unlock the exit door and finish your quest!
+      </p>
+      <div id="door-key-status" class="bg-slate-800 p-3 rounded-xl text-xs font-bold text-amber-300">
+        Current Keys: 0 / 3
+      </div>
+      <button id="close-door-modal-btn" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition">
+        Got it! Search for Keys
+      </button>
+    </div>
+  </div>
+
+  <!-- Victory Screen Modal -->
+  <div id="victory-modal" class="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-lg hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-4 border-amber-400 text-white rounded-3xl max-w-md w-full p-6 shadow-2xl text-center space-y-5 animate-pulse-glow">
+      <div class="text-6xl animate-bounce-slow">🏆</div>
+      <div>
+        <h2 class="text-2xl font-black text-amber-400">QUEST COMPLETED!</h2>
+        <p class="text-xs text-slate-300 mt-1">You unlocked the Mystery House and mastered house vocabulary!</p>
+      </div>
+
+      <div class="bg-slate-800/90 p-4 rounded-2xl border border-slate-700 text-xs space-y-2 text-left">
+        <div class="flex justify-between border-b border-slate-700 pb-1.5">
+          <span class="text-slate-400">Keys Unlocked:</span>
+          <span class="font-bold text-amber-400">3 / 3 Keys 🔑</span>
+        </div>
+        <div class="flex justify-between border-b border-slate-700 pb-1.5">
+          <span class="text-slate-400">Topic Mastered:</span>
+          <span class="font-bold text-sky-300">Year 3 - My New House</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Furniture Vocabulary:</span>
+          <span class="font-bold text-emerald-400">Bed, Sofa, Fridge, Wardrobe, Table</span>
+        </div>
+      </div>
+
+      <button id="restart-game-btn" class="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black rounded-xl text-sm shadow-xl transition active:scale-95">
+        🔄 Play Again (Reset Quest)
+      </button>
+    </div>
+  </div>
+
+  <!-- JavaScript Engine & Quiz Logic -->
+  <script>
+    // --- VOCABULARY QUIZ DATA (YEAR 3 TOPIC 5: MY NEW HOUSE) ---
+    const FURNITURE_DATA = [
+      {
+        id: 'bed',
+        name: 'Bed',
+        room: 'Bedroom',
+        icon: '🛏️',
+        pos: { x: -9, y: 0, z: 6 },
+        question: 'Where do you sleep in the bedroom? Identify this furniture piece:',
+        sentence: 'It is a comfortable ______.',
+        options: ['Bed', 'Sofa', 'Fridge', 'Bookcase'],
+        answer: 0,
+        hint: 'Hint: You sleep on it at night with a pillow!',
+        solved: false
+      },
+      {
+        id: 'wardrobe',
+        name: 'Wardrobe',
+        room: 'Bedroom',
+        icon: '🚪',
+        pos: { x: -12, y: 0, z: 3 },
+        question: 'Where do we keep our clothes neatly folded or hanging in the bedroom?',
+        sentence: 'We put our clothes in the ______.',
+        options: ['Wardrobe', 'Chair', 'Sofa', 'Lamp'],
+        answer: 0,
+        hint: 'Hint: It is a tall wooden cabinet for shirts and pants.',
+        solved: false
+      },
+      {
+        id: 'sofa',
+        name: 'Sofa',
+        room: 'Living Room',
+        icon: '🛋️',
+        pos: { x: -9, y: 0, z: -5 },
+        question: 'We sit together with family in the living room on the ______.',
+        sentence: 'We watch TV while sitting on the ______.',
+        options: ['Sofa', 'Wardrobe', 'Bed', 'Door'],
+        answer: 0,
+        hint: 'Hint: It is a soft couch in the living room.',
+        solved: false
+      },
+      {
+        id: 'fridge',
+        name: 'Fridge',
+        room: 'Kitchen',
+        icon: '🧊',
+        pos: { x: 9, y: 0, z: -6 },
+        question: 'We keep fresh milk, fruits, and cold drinks inside the ______.',
+        sentence: 'It is a cold silver ______.',
+        options: ['Fridge', 'Armchair', 'Desk', 'Table'],
+        answer: 0,
+        hint: 'Hint: It stays cold inside to keep food fresh!',
+        solved: false
+      },
+      {
+        id: 'table',
+        name: 'Dining Table',
+        room: 'Kitchen & Dining',
+        icon: '🍽️',
+        pos: { x: 9, y: 0, z: 5 },
+        question: 'We eat breakfast and dinner together around the dining ______.',
+        sentence: 'We place our food plates on the ______.',
+        options: ['Table', 'Bed', 'Wardrobe', 'Wall'],
+        answer: 0,
+        hint: 'Hint: You sit on chairs around it to eat meals.',
+        solved: false
+      }
+    ];
+
+    // Main Exit Door Data
+    const EXIT_DOOR = {
+      pos: { x: 0, y: 0, z: -10 },
+      unlocked: false
+    };
+
+    // State Tracking
+    const STATE = {
+      isPaused: false,
+      keysCollected: 0,
+      activeInteractable: null, // furniture object or exit door
+      playerPos: new THREE.Vector3(0, 0.5, 2),
+      cameraYaw: 0,
+      cameraPitch: 0.35,
+      cameraDist: 6.5
+    };
+
+    const keys = { forward: false, backward: false, left: false, right: false, interact: false };
+    const joystick = { active: false, touchId: null, startX: 0, startY: 0, moveX: 0, moveY: 0, maxRadius: 40 };
+    const touchCam = { active: false, touchId: null, lastX: 0, lastY: 0 };
+
+    let scene, camera, renderer, clock;
+    let playerGroup;
+    let wallBoxes = [];
+    let furnitureMeshes = [];
+    let exitDoorMesh, exitLockIndicator;
+
+    // Web Audio Synthesizer
+    const AudioEngine = {
+      ctx: null,
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+      },
+      playChime() {
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, this.ctx.currentTime); // C5
+          osc.frequency.exponentialRampToValueAtTime(659.25, this.ctx.currentTime + 0.1); // E5
+          osc.frequency.exponentialRampToValueAtTime(783.99, this.ctx.currentTime + 0.2); // G5
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.35);
+        } catch(e){}
+      },
+      playError() {
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+          osc.frequency.setValueAtTime(140, this.ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.3);
+        } catch(e){}
+      },
+      playClick() {
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(450, this.ctx.currentTime);
+          gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.08);
+        } catch(e){}
+      },
+      playFanfare() {
+        if (!this.ctx) return;
+        try {
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.12);
+            gain.gain.setValueAtTime(0.25, this.ctx.currentTime + i * 0.12);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + i * 0.12 + 0.3);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(this.ctx.currentTime + i * 0.12);
+            osc.stop(this.ctx.currentTime + i * 0.12 + 0.3);
+          });
+        } catch(e){}
+      }
+    };
+
+    window.onload = function() { initEngine(); };
+
+    function initEngine() {
+      clock = new THREE.Clock();
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x38bdf8);
+      scene.fog = new THREE.FogExp2(0x38bdf8, 0.03);
+
+      const aspect = window.innerWidth / window.innerHeight;
+      camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 100);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xfffbeb, 0.75);
+      dirLight.position.set(15, 25, 12);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 1024;
+      dirLight.shadow.mapSize.height = 1024;
+      scene.add(dirLight);
+
+      buildHouseMap();
+      createPlayerAvatar();
+      buildAll3DFurniture();
+      buildExitDoor();
+
+      setupEventListeners();
+      animate();
+    }
+
+    // --- 3D HOUSE MAP & FLOORS ---
+    function buildHouseMap() {
+      // Main Floor Base
+      const groundGeo = new THREE.PlaneGeometry(32, 32);
+      const groundMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      // Room Floors
+      function addRoomFloor(x, z, w, d, color) {
+        const geo = new THREE.PlaneGeometry(w, d);
+        const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4 });
+        const floor = new THREE.Mesh(geo, mat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.set(x, 0.01, z);
+        floor.receiveShadow = true;
+        scene.add(floor);
+      }
+
+      addRoomFloor(0, 0, 8, 20, 0xf8fafc);      // Hallway (White Tile)
+      addRoomFloor(-9, -5, 10, 10, 0xfde68a); // Living Room (Warm Wood)
+      addRoomFloor(9, -5, 10, 10, 0xa7f3d0);  // Kitchen (Teal Tile)
+      addRoomFloor(-9, 5, 10, 10, 0xfbcfe8);  // Bedroom (Pink Wood)
+      addRoomFloor(9, 5, 10, 10, 0xbae6fd);   // Dining Area (Cyan Tile)
+
+      // Solid Walls
+      function addWall(x, z, w, d, height = 2.5, color = 0x64748b) {
+        const geo = new THREE.BoxGeometry(w, height, d);
+        const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.7 });
+        const wall = new THREE.Mesh(geo, mat);
+        wall.position.set(x, height / 2, z);
+        wall.castShadow = true;
+        wall.receiveShadow = true;
+        scene.add(wall);
+
+        const box = new THREE.Box3().setFromObject(wall);
+        wallBoxes.push(box);
+
+        // Decorative wall trim
+        const capGeo = new THREE.BoxGeometry(w + 0.1, 0.12, d + 0.1);
+        const capMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const cap = new THREE.Mesh(capGeo, capMat);
+        cap.position.set(x, height + 0.06, z);
+        scene.add(cap);
+      }
+
+      const H = 2.5, C = 0x475569;
+      // Outer Walls
+      addWall(0, -10.25, 28, 0.5, H, C); // North Outer Wall
+      addWall(0, 10.25, 28, 0.5, H, C);  // South Outer Wall
+      addWall(-14.25, 0, 0.5, 21, H, C); // West Outer Wall
+      addWall(14.25, 0, 0.5, 21, H, C);  // East Outer Wall
+
+      // Room Partition Walls (With Doorways)
+      addWall(-9, -0.25, 10, 0.5, H, C);
+      addWall(-4.25, -7.5, 0.5, 5, H, C);
+
+      addWall(9, -0.25, 10, 0.5, H, C);
+      addWall(4.25, -7.5, 0.5, 5, H, C);
+
+      addWall(-9, 0.25, 10, 0.5, H, C);
+      addWall(-4.25, 7.5, 0.5, 5, H, C);
+
+      addWall(9, 0.25, 10, 0.5, H, C);
+      addWall(4.25, 7.5, 0.5, 5, H, C);
+    }
+
+    // --- 3D FURNITURE MODELS ---
+    function buildAll3DFurniture() {
+      FURNITURE_DATA.forEach(data => {
+        const group = new THREE.Group();
+        group.position.set(data.pos.x, data.pos.y, data.pos.z);
+
+        if (data.id === 'bed') {
+          // Wooden Frame
+          const frame = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.4, 3.2), new THREE.MeshStandardMaterial({ color: 0x8b5a2b }));
+          frame.position.y = 0.2;
+          frame.castShadow = true;
+          group.add(frame);
+
+          // Headboard
+          const hb = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.2, 0.3), new THREE.MeshStandardMaterial({ color: 0x5c3a21 }));
+          hb.position.set(0, 0.8, -1.45);
+          hb.castShadow = true;
+          group.add(hb);
+
+          // Blue Mattress
+          const mat = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.45, 2.9), new THREE.MeshStandardMaterial({ color: 0x3b82f6 }));
+          mat.position.y = 0.55;
+          group.add(mat);
+
+          // White Pillow
+          const pillow = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.15, 0.7), new THREE.MeshStandardMaterial({ color: 0xf8fafc }));
+          pillow.position.set(0, 0.8, -1.0);
+          group.add(pillow);
+        }
+        else if (data.id === 'wardrobe') {
+          // Tall Mahogany Cabinet
+          const body = new THREE.Mesh(new THREE.BoxGeometry(2.0, 3.2, 1.0), new THREE.MeshStandardMaterial({ color: 0x451a03 }));
+          body.position.y = 1.6;
+          body.castShadow = true;
+          group.add(body);
+
+          // Handles
+          const h1 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.4), new THREE.MeshStandardMaterial({ color: 0xfbbf24 }));
+          h1.position.set(-0.2, 1.6, 0.52);
+          const h2 = h1.clone();
+          h2.position.x = 0.2;
+          group.add(h1); group.add(h2);
+        }
+        else if (data.id === 'sofa') {
+          // Plush Blue Sofa Seat
+          const seat = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.6, 1.4), new THREE.MeshStandardMaterial({ color: 0x0284c7 }));
+          seat.position.y = 0.4;
+          seat.castShadow = true;
+          group.add(seat);
+
+          // Backrest
+          const back = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.0, 0.4), new THREE.MeshStandardMaterial({ color: 0x0369a1 }));
+          back.position.set(0, 0.9, -0.5);
+          group.add(back);
+
+          // Armrests
+          const armL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.8, 1.4), new THREE.MeshStandardMaterial({ color: 0x0369a1 }));
+          armL.position.set(-1.4, 0.7, 0);
+          const armR = armL.clone();
+          armR.position.x = 1.4;
+          group.add(armL); group.add(armR);
+        }
+        else if (data.id === 'fridge') {
+          // Silver Double Door Refrigerator
+          const body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.8, 1.2), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.5, roughness: 0.3 }));
+          body.position.y = 1.4;
+          body.castShadow = true;
+          group.add(body);
+
+          // Divider Line & Handles
+          const divLine = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.05, 1.22), new THREE.MeshStandardMaterial({ color: 0x64748b }));
+          divLine.position.y = 1.8;
+          group.add(divLine);
+
+          const h1 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.08), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+          h1.position.set(0.5, 2.1, 0.62);
+          const h2 = h1.clone();
+          h2.position.y = 1.2;
+          group.add(h1); group.add(h2);
+        }
+        else if (data.id === 'table') {
+          // Dining Table Surface
+          const top = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.2, 1.8), new THREE.MeshStandardMaterial({ color: 0xd97706 }));
+          top.position.y = 1.1;
+          top.castShadow = true;
+          group.add(top);
+
+          // 4 Legs
+          const legGeo = new THREE.BoxGeometry(0.2, 1.0, 0.2);
+          const legMat = new THREE.MeshStandardMaterial({ color: 0x92400e });
+          [[-1.1, -0.7], [1.1, -0.7], [-1.1, 0.7], [1.1, 0.7]].forEach(pos => {
+            const leg = new THREE.Mesh(legGeo, legMat);
+            leg.position.set(pos[0], 0.5, pos[1]);
+            group.add(leg);
+          });
+        }
+
+        // Floating Interactive Indicator Ring & "?" Marker
+        const ringGeo = new THREE.RingGeometry(1.2, 1.5, 32);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = 0.02;
+        group.add(ring);
+        data.ringMesh = ring;
+
+        // Floating Question/Check Marker
+        const markerGeo = new THREE.OctahedronGeometry(0.35);
+        const markerMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xd97706, emissiveIntensity: 0.5 });
+        const marker = new THREE.Mesh(markerGeo, markerMat);
+        marker.position.y = 3.2;
+        group.add(marker);
+        data.markerMesh = marker;
+
+        scene.add(group);
+        furnitureMeshes.push(group);
+
+        // Add AABB collision box for furniture
+        const box = new THREE.Box3().setFromObject(group);
+        wallBoxes.push(box);
+      });
+    }
+
+    // --- MAIN EXIT DOOR ---
+    function buildExitDoor() {
+      const doorGroup = new THREE.Group();
+      doorGroup.position.set(EXIT_DOOR.pos.x, EXIT_DOOR.pos.y, EXIT_DOOR.pos.z);
+
+      // Grand Golden Frame
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.4, 0.4), new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.6 }));
+      frame.position.y = 1.7;
+      doorGroup.add(frame);
+
+      // Wooden Double Doors
+      const doorL = new THREE.Mesh(new THREE.BoxGeometry(1.3, 3.0, 0.2), new THREE.MeshStandardMaterial({ color: 0x78350f }));
+      doorL.position.set(-0.7, 1.5, 0);
+      const doorR = doorL.clone();
+      doorR.position.x = 0.7;
+      doorGroup.add(doorL); doorGroup.add(doorR);
+
+      // Glowing Padlock Indicator
+      const lockGeo = new THREE.SphereGeometry(0.4, 16, 16);
+      const lockMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xb91c1c, emissiveIntensity: 0.8 });
+      exitLockIndicator = new THREE.Mesh(lockGeo, lockMat);
+      exitLockIndicator.position.set(0, 1.8, 0.3);
+      doorGroup.add(exitLockIndicator);
+
+      scene.add(doorGroup);
+      const box = new THREE.Box3().setFromObject(doorGroup);
+      wallBoxes.push(box);
+    }
+
+    // --- PLAYER AVATAR CREATOR ---
+    function createPlayerAvatar() {
+      playerGroup = new THREE.Group();
+      playerGroup.position.set(STATE.playerPos.x, STATE.playerPos.y, STATE.playerPos.z);
+
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 0.4), new THREE.MeshStandardMaterial({ color: 0xf59e0b }));
+      torso.position.y = 0.65;
+      torso.castShadow = true;
+      playerGroup.add(torso);
+
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.55), new THREE.MeshStandardMaterial({ color: 0xfde047 }));
+      head.position.y = 1.35;
+      head.castShadow = true;
+      playerGroup.add(head);
+
+      const eyeGeo = new THREE.BoxGeometry(0.1, 0.12, 0.05);
+      const eyeMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
+      const e1 = new THREE.Mesh(eyeGeo, eyeMat); e1.position.set(-0.15, 1.4, 0.26);
+      const e2 = e1.clone(); e2.position.x = 0.15;
+      playerGroup.add(e1); playerGroup.add(e2);
+
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.15, 0.6), new THREE.MeshStandardMaterial({ color: 0x2563eb }));
+      cap.position.y = 1.65;
+      playerGroup.add(cap);
+
+      const legGeo = new THREE.BoxGeometry(0.25, 0.5, 0.25);
+      const legMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+      playerGroup.leftLeg = new THREE.Mesh(legGeo, legMat);
+      playerGroup.leftLeg.position.set(-0.2, 0.25, 0);
+      playerGroup.leftLeg.castShadow = true;
+      playerGroup.add(playerGroup.leftLeg);
+
+      playerGroup.rightLeg = new THREE.Mesh(legGeo, legMat);
+      playerGroup.rightLeg.position.set(0.2, 0.25, 0);
+      playerGroup.rightLeg.castShadow = true;
+      playerGroup.add(playerGroup.rightLeg);
+
+      scene.add(playerGroup);
+    }
+
+    // --- CONTROLS & EVENT LISTENERS ---
+    function setupEventListeners() {
+      window.addEventListener('resize', onWindowResize);
+
+      window.addEventListener('keydown', (e) => {
+        if (STATE.isPaused && e.code !== 'KeyE' && e.code !== 'Space' && e.code !== 'Escape') return;
+        AudioEngine.init();
+        switch (e.code) {
+          case 'KeyW': case 'ArrowUp': keys.forward = true; break;
+          case 'KeyS': case 'ArrowDown': keys.backward = true; break;
+          case 'KeyA': case 'ArrowLeft': keys.left = true; break;
+          case 'KeyD': case 'ArrowRight': keys.right = true; break;
+          case 'KeyE': case 'Space':
+            if (!keys.interact) {
+              keys.interact = true;
+              triggerProximityInteraction();
+            }
+            break;
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        switch (e.code) {
+          case 'KeyW': case 'ArrowUp': keys.forward = false; break;
+          case 'KeyS': case 'ArrowDown': keys.backward = false; break;
+          case 'KeyA': case 'ArrowLeft': keys.left = false; break;
+          case 'KeyD': case 'ArrowRight': keys.right = false; break;
+          case 'KeyE': case 'Space': keys.interact = false; break;
+        }
+      });
+
+      // Mouse Look
+      let isMouseDown = false;
+      let prevMouseX = 0, prevMouseY = 0;
+      window.addEventListener('mousedown', (e) => {
+        if (e.target.tagName === 'BUTTON' || e.target.closest('#quiz-modal')) return;
+        AudioEngine.init();
+        isMouseDown = true;
+        prevMouseX = e.clientX;
+        prevMouseY = e.clientY;
+      });
+      window.addEventListener('mousemove', (e) => {
+        if (!isMouseDown) return;
+        const dx = e.clientX - prevMouseX;
+        const dy = e.clientY - prevMouseY;
+        prevMouseX = e.clientX;
+        prevMouseY = e.clientY;
+        STATE.cameraYaw -= dx * 0.005;
+        STATE.cameraPitch = Math.max(0.1, Math.min(1.2, STATE.cameraPitch + dy * 0.005));
+      });
+      window.addEventListener('mouseup', () => { isMouseDown = false; });
+
+      // Touch Joystick & Camera
+      const joystickBase = document.getElementById('joystick-base');
+      const joystickThumb = document.getElementById('joystick-thumb');
+      const touchCameraZone = document.getElementById('touch-camera-zone');
+
+      joystickBase.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        AudioEngine.init();
+        const touch = e.changedTouches[0];
+        joystick.active = true;
+        joystick.touchId = touch.identifier;
+        const rect = joystickBase.getBoundingClientRect();
+        joystick.startX = rect.left + rect.width / 2;
+        joystick.startY = rect.top + rect.height / 2;
+        updateJoystick(touch.clientX, touch.clientY);
+      }, { passive: false });
+
+      window.addEventListener('touchmove', (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const touch = e.changedTouches[i];
+          if (joystick.active && touch.identifier === joystick.touchId) {
+            updateJoystick(touch.clientX, touch.clientY);
+          } else if (touchCam.active && touch.identifier === touchCam.touchId) {
+            const dx = touch.clientX - touchCam.lastX;
+            const dy = touch.clientY - touchCam.lastY;
+            touchCam.lastX = touch.clientX;
+            touchCam.lastY = touch.clientY;
+            STATE.cameraYaw -= dx * 0.007;
+            STATE.cameraPitch = Math.max(0.1, Math.min(1.2, STATE.cameraPitch + dy * 0.007));
+          }
+        }
+      }, { passive: false });
+
+      window.addEventListener('touchend', (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const touch = e.changedTouches[i];
+          if (joystick.active && touch.identifier === joystick.touchId) {
+            joystick.active = false;
+            joystick.moveX = 0; joystick.moveY = 0;
+            joystickThumb.style.transform = `translate(0px, 0px)`;
+          } if (touchCam.active && touch.identifier === touchCam.touchId) {
+            touchCam.active = false;
+          }
+        }
+      });
+
+      touchCameraZone.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        AudioEngine.init();
+        if (touchCam.active) return;
+        const touch = e.changedTouches[0];
+        touchCam.active = true;
+        touchCam.touchId = touch.identifier;
+        touchCam.lastX = touch.clientX;
+        touchCam.lastY = touch.clientY;
+      }, { passive: false });
+
+      function updateJoystick(cx, cy) {
+        let dx = cx - joystick.startX;
+        let dy = cy - joystick.startY;
+        const dist = Math.hypot(dx, dy);
+        if (dist > joystick.maxRadius) {
+          dx = (dx / dist) * joystick.maxRadius;
+          dy = (dy / dist) * joystick.maxRadius;
+        }
+        joystickThumb.style.transform = `translate(${dx}px, ${dy}px)`;
+        joystick.moveX = dx / joystick.maxRadius;
+        joystick.moveY = dy / joystick.maxRadius;
+      }
+
+      // Buttons Click Listeners
+      document.getElementById('mobile-interact-btn').addEventListener('click', () => {
+        AudioEngine.init();
+        triggerProximityInteraction();
+      });
+      document.getElementById('reset-pos-btn').addEventListener('click', () => {
+        AudioEngine.playClick();
+        playerGroup.position.set(0, 0.5, 2);
+      });
+      document.getElementById('toggle-help-btn').addEventListener('click', () => {
+        AudioEngine.playClick();
+        document.getElementById('controls-panel').classList.toggle('hidden');
+      });
+      document.getElementById('close-controls-btn').addEventListener('click', () => {
+        AudioEngine.playClick();
+        document.getElementById('controls-panel').classList.add('hidden');
+      });
+      document.getElementById('close-quiz-btn').addEventListener('click', closeQuizModal);
+      document.getElementById('close-quiz-x-btn').addEventListener('click', closeQuizModal);
+      document.getElementById('close-door-modal-btn').addEventListener('click', () => {
+        AudioEngine.playClick();
+        STATE.isPaused = false;
+        document.getElementById('door-modal').classList.add('hidden');
+      });
+      document.getElementById('restart-game-btn').addEventListener('click', () => {
+        location.reload();
+      });
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // --- PROXIMITY INTERACTION ROUTER ---
+    function triggerProximityInteraction() {
+      if (!STATE.activeInteractable) return;
+
+      if (STATE.activeInteractable.type === 'furniture') {
+        openQuizModal(STATE.activeInteractable.data);
+      } else if (STATE.activeInteractable.type === 'door') {
+        if (STATE.keysCollected >= 3) {
+          AudioEngine.playFanfare();
+          STATE.isPaused = true;
+          document.getElementById('victory-modal').classList.remove('hidden');
+        } else {
+          AudioEngine.playError();
+          STATE.isPaused = true;
+          document.getElementById('door-key-status').innerText = `Current Keys: ${STATE.keysCollected} / 3`;
+          document.getElementById('door-modal').classList.remove('hidden');
+        }
+      }
+    }
+
+    // --- QUIZ MODAL LOGIC ---
+    function openQuizModal(furniture) {
+      STATE.isPaused = true;
+      AudioEngine.playClick();
+
+      document.getElementById('quiz-icon-container').innerText = furniture.icon;
+      document.getElementById('quiz-room-badge').innerText = furniture.room;
+      document.getElementById('quiz-furniture-title').innerText = furniture.name;
+      document.getElementById('quiz-question-text').innerText = furniture.question;
+      document.getElementById('quiz-sentence-text').innerText = `"${furniture.sentence}"`;
+
+      const optionsContainer = document.getElementById('quiz-options-container');
+      optionsContainer.innerHTML = '';
+      const feedbackBox = document.getElementById('quiz-feedback-box');
+      feedbackBox.classList.add('hidden');
+
+      furniture.options.forEach((optText, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold rounded-xl border border-slate-700 text-sm shadow transition active:scale-95';
+        btn.innerText = optText;
+
+        if (furniture.solved) {
+          btn.disabled = true;
+          if (idx === furniture.answer) {
+            btn.className = 'w-full py-3 px-4 bg-emerald-600 text-white font-bold rounded-xl border border-emerald-400 text-sm';
+          }
+        } else {
+          btn.onclick = () => checkAnswer(idx, furniture, btn);
+        }
+
+        optionsContainer.appendChild(btn);
+      });
+
+      if (furniture.solved) {
+        feedbackBox.className = 'p-3 rounded-xl text-xs font-semibold text-center bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        feedbackBox.innerText = '✅ Correct! Key unlocked for this furniture piece!';
+        feedbackBox.classList.remove('hidden');
+      }
+
+      document.getElementById('quiz-modal').classList.remove('hidden');
+    }
+
+    function checkAnswer(chosenIdx, furniture, clickedBtn) {
+      const feedbackBox = document.getElementById('quiz-feedback-box');
+
+      if (chosenIdx === furniture.answer) {
+        // Correct Answer!
+        AudioEngine.playChime();
+        furniture.solved = true;
+        STATE.keysCollected++;
+        document.getElementById('key-counter-display').innerText = `${STATE.keysCollected} / 3 Keys`;
+
+        // Update 3D Markers to Green Check
+        furniture.ringMesh.material.color.setHex(0x10b981);
+        furniture.markerMesh.material.color.setHex(0x10b981);
+        furniture.markerMesh.material.emissive.setHex(0x059669);
+
+        // Highlight Button
+        clickedBtn.className = 'w-full py-3 px-4 bg-emerald-600 text-white font-bold rounded-xl border border-emerald-400 text-sm shadow-lg';
+
+        feedbackBox.className = 'p-3 rounded-xl text-xs font-semibold text-center bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        feedbackBox.innerText = `🎉 Splendid! '${furniture.options[chosenIdx]}' is correct! You earned Key #${STATE.keysCollected}!`;
+        feedbackBox.classList.remove('hidden');
+
+        // Check if 3 Keys Collected
+        if (STATE.keysCollected >= 3) {
+          EXIT_DOOR.unlocked = true;
+          exitLockIndicator.material.color.setHex(0x10b981);
+          exitLockIndicator.material.emissive.setHex(0x059669);
+          document.getElementById('objective-badge').innerText = '🔑 All 3 Keys Found! Go to the Exit Door at the North Hallway!';
+          document.getElementById('objective-badge').className = 'bg-emerald-500 text-slate-950 font-black px-4 py-1 rounded-full text-xs shadow-md border border-white animate-bounce-slow';
+        }
+      } else {
+        // Incorrect Answer!
+        AudioEngine.playError();
+        clickedBtn.className = 'w-full py-3 px-4 bg-rose-600/50 text-rose-200 font-bold rounded-xl border border-rose-500 text-sm';
+
+        feedbackBox.className = 'p-3 rounded-xl text-xs font-semibold text-center bg-rose-500/20 text-rose-300 border border-rose-500/40';
+        feedbackBox.innerText = `❌ Not quite! ${furniture.hint}`;
+        feedbackBox.classList.remove('hidden');
+      }
+    }
+
+    function closeQuizModal() {
+      AudioEngine.playClick();
+      STATE.isPaused = false;
+      document.getElementById('quiz-modal').classList.add('hidden');
+    }
+
+    // --- GAME LOOP & ANIMATION ---
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = Math.min(clock.getDelta(), 0.1);
+
+      if (!STATE.isPaused) {
+        updatePlayerMovement(delta);
+      }
+
+      updateFurnitureMarkers(delta);
+      updateCameraPosition();
+
+      renderer.render(scene, camera);
+    }
+
+    function updatePlayerMovement(delta) {
+      let inputX = 0, inputZ = 0;
+      if (keys.forward) inputZ -= 1;
+      if (keys.backward) inputZ += 1;
+      if (keys.left) inputX -= 1;
+      if (keys.right) inputX += 1;
+
+      if (joystick.active) {
+        inputX = joystick.moveX;
+        inputZ = joystick.moveY;
+      }
+
+      const moveLen = Math.hypot(inputX, inputZ);
+      if (moveLen > 0.05) {
+        let normX = inputX / (moveLen > 1 ? moveLen : 1);
+        let normZ = inputZ / (moveLen > 1 ? moveLen : 1);
+
+        const moveAngle = Math.atan2(normX, normZ) + STATE.cameraYaw;
+        const dirX = Math.sin(moveAngle);
+        const dirZ = Math.cos(moveAngle);
+        const moveDistance = 4.5 * delta;
+
+        // Collision logic
+        const r = 0.4;
+        let targetX = playerGroup.position.x + dirX * moveDistance;
+        let targetZ = playerGroup.position.z + dirZ * moveDistance;
+
+        let collideX = false;
+        const boxX = new THREE.Box3(
+          new THREE.Vector3(targetX - r, 0, playerGroup.position.z - r),
+          new THREE.Vector3(targetX + r, 1.8, playerGroup.position.z + r)
+        );
+        for (let b of wallBoxes) { if (b.intersectsBox(boxX)) { collideX = true; break; } }
+        if (!collideX) playerGroup.position.x = targetX;
+
+        let collideZ = false;
+        const boxZ = new THREE.Box3(
+          new THREE.Vector3(playerGroup.position.x - r, 0, targetZ - r),
+          new THREE.Vector3(playerGroup.position.x + r, 1.8, targetZ + r)
+        );
+        for (let b of wallBoxes) { if (b.intersectsBox(boxZ)) { collideZ = true; break; } }
+        if (!collideZ) playerGroup.position.z = targetZ;
+
+        // Rotation & Walking Animation
+        const targetRot = Math.atan2(dirX, dirZ);
+        let diff = targetRot - playerGroup.rotation.y;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        playerGroup.rotation.y += diff * 12 * delta;
+
+        const walkCycle = Math.sin(clock.getElapsedTime() * 14);
+        playerGroup.leftLeg.rotation.x = walkCycle * 0.6;
+        playerGroup.rightLeg.rotation.x = -walkCycle * 0.6;
+      } else {
+        playerGroup.leftLeg.rotation.x = 0;
+        playerGroup.rightLeg.rotation.x = 0;
+      }
+
+      // Check Proximity to Furniture & Exit Door
+      let nearestItem = null;
+      let minDistance = 2.5;
+
+      // Check Furniture
+      FURNITURE_DATA.forEach(furniture => {
+        const d = playerGroup.position.distanceTo(new THREE.Vector3(furniture.pos.x, 0.5, furniture.pos.z));
+        if (d < minDistance) {
+          minDistance = d;
+          nearestItem = { type: 'furniture', data: furniture };
+        }
+      });
+
+      // Check Exit Door
+      const dDoor = playerGroup.position.distanceTo(new THREE.Vector3(EXIT_DOOR.pos.x, 0.5, EXIT_DOOR.pos.z));
+      if (dDoor < minDistance) {
+        nearestItem = { type: 'door', data: EXIT_DOOR };
+      }
+
+      const promptUI = document.getElementById('interact-prompt');
+      const promptText = document.getElementById('prompt-text');
+      const promptIcon = document.getElementById('prompt-icon');
+
+      if (nearestItem) {
+        STATE.activeInteractable = nearestItem;
+        promptUI.classList.remove('hidden');
+        if (nearestItem.type === 'furniture') {
+          promptIcon.innerText = nearestItem.data.icon;
+          promptText.innerText = nearestItem.data.solved 
+            ? `Inspect ${nearestItem.data.name} [Solved]` 
+            : `Inspect ${nearestItem.data.name} (Quiz)`;
+        } else {
+          promptIcon.innerText = '🚪';
+          promptText.innerText = STATE.keysCollected >= 3 ? 'Unlock Main Exit Door!' : 'Inspect Locked Door';
+        }
+      } else {
+        STATE.activeInteractable = null;
+        promptUI.classList.add('hidden');
+      }
+    }
+
+    function updateFurnitureMarkers(delta) {
+      const time = clock.getElapsedTime();
+      FURNITURE_DATA.forEach(data => {
+        if (data.markerMesh) {
+          data.markerMesh.rotation.y += 1.2 * delta;
+          data.markerMesh.position.y = 3.2 + Math.sin(time * 3) * 0.12;
+        }
+        if (data.ringMesh) {
+          const s = 1.0 + Math.sin(time * 4) * 0.1;
+          data.ringMesh.scale.set(s, s, s);
+        }
+      });
+      if (exitLockIndicator) {
+        exitLockIndicator.rotation.y += 1.0 * delta;
+      }
+    }
+
+    function updateCameraPosition() {
+      const targetY = playerGroup.position.y + 1.2;
+      const cx = playerGroup.position.x + Math.sin(STATE.cameraYaw) * Math.cos(STATE.cameraPitch) * STATE.cameraDist;
+      const cz = playerGroup.position.z + Math.cos(STATE.cameraYaw) * Math.cos(STATE.cameraPitch) * STATE.cameraDist;
+      const cy = targetY + Math.sin(STATE.cameraPitch) * STATE.cameraDist;
+
+      camera.position.x += (cx - camera.position.x) * 0.1;
+      camera.position.y += (cy - camera.position.y) * 0.1;
+      camera.position.z += (cz - camera.position.z) * 0.1;
+      camera.lookAt(playerGroup.position.x, targetY, playerGroup.position.z);
+    }
+  </script>
+</body>
+</html>
